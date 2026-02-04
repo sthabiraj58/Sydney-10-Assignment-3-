@@ -9,3 +9,72 @@ def create_status(self):
             relief=tk.SUNKEN,
             anchor=tk.W
         ).pack(side=tk.BOTTOM, fill=tk.X)
+def push_undo(self):
+        if self.image is not None:
+            self.undo_stack.append(self.image.copy())
+            self.redo_stack.clear()
+
+    def show_image(self):
+        if self.image is None:
+            return
+rgb = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(rgb)
+        img.thumbnail((600, 500))
+
+        self.tk_image = ImageTk.PhotoImage(img)
+        self.image_label.config(image=self.tk_image)
+
+        h, w = self.image.shape[:2]
+        self.status.set(
+            f"Editing: {self.image_name} ({w} x {h})"
+        )
+
+    def open_image(self):
+        path = filedialog.askopenfilename(
+            filetypes=[("Images", "*.jpg *.png *.bmp")]
+        )
+        if not path:
+            return
+img = cv2.imread(path)
+        if img is None:
+            messagebox.showerror(
+                "Error",
+                "Unable to open image."
+            )
+            return
+
+        self.image = img
+        self.image_name = os.path.basename(path)
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self.show_image()
+
+    def save_image(self):
+        if self.image is None:
+            messagebox.showwarning(
+                "Warning",
+                "No image to save."
+            )
+            return
+path = filedialog.asksaveasfilename(
+            defaultextension=".png"
+        )
+        if path:
+            cv2.imwrite(path, self.image)
+            messagebox.showinfo(
+                "Saved",
+                "Image saved successfully."
+            )
+
+    def undo(self):
+        if not self.undo_stack:
+            return
+        self.redo_stack.append(self.image.copy())
+        self.image = self.undo_stack.pop()
+        self.show_image()
+def redo(self):
+        if not self.redo_stack:
+            return
+        self.undo_stack.append(self.image.copy())
+        self.image = self.redo_stack.pop()
+        self.show_image()
