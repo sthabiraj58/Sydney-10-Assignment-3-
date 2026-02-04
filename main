@@ -1,1 +1,11 @@
-
+def create_status(self):
+        self.status = tk.StringVar(
+            value="Welcome to Syd 10 – Open an image to begin."
+        )
+        tk.Label(
+            self.root,
+            textvariable=self.status,
+            bd=1,
+            relief=tk.SUNKEN,
+            anchor=tk.W
+        ).pack(side=tk.BOTTOM, fill=tk.X)
