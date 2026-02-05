@@ -1,0 +1,86 @@
+import cv2
+import numpy as np
+
+class ImageProcessor:
+   def _init_(self,image_path):
+
+       self.image = cv2.imread(image_path)
+
+        if self.image is None:
+            raise ValueError("Image not found or invalid format")
+    
+  
+    def grayscale(self):
+        return cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+
+   
+    def blur(self, intensity):
+        if intensity % 2 == 0:
+            intensity += 1
+        return cv2.GaussianBlur(self.image, (intensity, intensity), 0)
+
+   
+    def edge_detection(self):
+        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+        return cv2.Canny(gray, 100, 200)
+
+ 
+    def adjust_brightness(self, value):
+        hsv = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+
+        v = np.clip(v + value, 0, 255).astype(np.uint8)
+
+        final_hsv = cv2.merge((h, s, v))
+        return cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+
+    def adjust_contrast(self, alpha):
+        return cv2.convertScaleAbs(self.image, alpha=alpha, beta=0)
+
+    def rotate(self, angle):
+        if angle == 90:
+            return cv2.rotate(self.image, cv2.ROTATE_90_CLOCKWISE)
+        elif angle == 180:
+            return cv2.rotate(self.image, cv2.ROTATE_180)
+        elif angle == 270:
+            return cv2.rotate(self.image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        return self.image
+
+ 
+    def flip(self, direction):
+        if direction == "horizontal":
+            return cv2.flip(self.image, 1)
+        elif direction == "vertical":
+            return cv2.flip(self.image, 0)
+        return self.image
+
+    
+    def resize(self, scale):
+        width = int(self.image.shape[1] * scale)
+        height = int(self.image.shape[0] * scale)
+        return cv2.resize(self.image, (width, height), interpolation=cv2.INTER_AREA)
+
+
+if __name__ == "__main__":
+    processor = ImageProcessor("C:\\Users\\Biraj\\OneDrive\\Documents\\assignment 3\\sydney.jpg")  # change image name if needed
+
+    gray = processor.grayscale()
+    blur = processor.blur(9)
+    edges = processor.edge_detection()
+    bright = processor.adjust_brightness(40)
+    contrast = processor.adjust_contrast(1.8)
+    rotated = processor.rotate(90)
+    flipped = processor.flip("horizontal")
+    resized = processor.resize(0.5)
+
+    cv2.imshow("Grayscale", gray)
+    cv2.imshow("Blur", blur)
+    cv2.imshow("Edges", edges)
+    cv2.imshow("Brightness", bright)
+    cv2.imshow("Contrast", contrast)
+    cv2.imshow("Rotated", rotated)
+    cv2.imshow("Flipped", flipped)
+    cv2.imshow("Resized", resized)
+
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
