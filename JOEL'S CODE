@@ -77,7 +77,7 @@ self.image = cv2.cvtColor(
         self.show_image()
 
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     root = tk.Tk()
     app = ImageEditor(root)
     root.mainloop()
