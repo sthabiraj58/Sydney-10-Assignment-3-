@@ -1,86 +1,145 @@
 import cv2
 import numpy as np
-
-class ImageProcessor:
-   def _init_(self,image_path):
-
-       self.image = cv2.imread(image_path)
-
-        if self.image is None:
-            raise ValueError("Image not found or invalid format")
-    
-  
-    def grayscale(self):
-        return cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-
-   
-    def blur(self, intensity):
-        if intensity % 2 == 0:
-            intensity += 1
-        return cv2.GaussianBlur(self.image, (intensity, intensity), 0)
-
-   
-    def edge_detection(self):
-        gray = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
-        return cv2.Canny(gray, 100, 200)
-
- 
-    def adjust_brightness(self, value):
-        hsv = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-
-        v = np.clip(v + value, 0, 255).astype(np.uint8)
-
-        final_hsv = cv2.merge((h, s, v))
-        return cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-
-    def adjust_contrast(self, alpha):
-        return cv2.convertScaleAbs(self.image, alpha=alpha, beta=0)
-
-    def rotate(self, angle):
-        if angle == 90:
-            return cv2.rotate(self.image, cv2.ROTATE_90_CLOCKWISE)
-        elif angle == 180:
-            return cv2.rotate(self.image, cv2.ROTATE_180)
-        elif angle == 270:
-            return cv2.rotate(self.image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        return self.image
-
- 
-    def flip(self, direction):
-        if direction == "horizontal":
-            return cv2.flip(self.image, 1)
-        elif direction == "vertical":
-            return cv2.flip(self.image, 0)
-        return self.image
-
-    
-    def resize(self, scale):
-        width = int(self.image.shape[1] * scale)
-        height = int(self.image.shape[0] * scale)
-        return cv2.resize(self.image, (width, height), interpolation=cv2.INTER_AREA)
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk
+import os
 
 
-if __name__ == "__main__":
-    processor = ImageProcessor("C:\\Users\\Biraj\\OneDrive\\Documents\\assignment 3\\sydney.jpg")  # change image name if needed
+class ImageEditor:
+    def _init_(self, root):
+        self.root = root
+        self.root.title("Syd 10")
+        self.root.geometry("850x550")
 
-    gray = processor.grayscale()
-    blur = processor.blur(9)
-    edges = processor.edge_detection()
-    bright = processor.adjust_brightness(40)
-    contrast = processor.adjust_contrast(1.8)
-    rotated = processor.rotate(90)
-    flipped = processor.flip("horizontal")
-    resized = processor.resize(0.5)
+        self.image = None
+        self.image_name = ""
+        self.undo_stack = []
+        self.redo_stack = []
 
-    cv2.imshow("Grayscale", gray)
-    cv2.imshow("Blur", blur)
-    cv2.imshow("Edges", edges)
-    cv2.imshow("Brightness", bright)
-    cv2.imshow("Contrast", contrast)
-    cv2.imshow("Rotated", rotated)
-    cv2.imshow("Flipped", flipped)
-    cv2.imshow("Resized", resized)
+        self.tk_image = None
 
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        self.create_menu()
+        self.create_ui()
+        self.create_status()
+        messagebox.showinfo(
+            "Welcome",
+            "Welcome to Syd 10!\n\nPlease open an image to start editing."
+        )
+
+    def create_menu(self):
+        menu = tk.Menu(self.root)
+        self.root.config(menu=menu)
+
+        file_menu = tk.Menu(menu, tearoff=0)
+        edit_menu = tk.Menu(menu, tearoff=0)
+
+        menu.add_cascade(label="File", menu=file_menu)
+        menu.add_cascade(label="Edit", menu=edit_menu)
+
+        file_menu.add_command(label="Open", command=self.open_image)
+        file_menu.add_command(label="Save", command=self.save_image)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+
+        edit_menu.add_command(label="Undo", command=self.undo)
+        edit_menu.add_command(label="Redo", command=self.redo)
+
+    def create_ui(self):
+        main = tk.Frame(self.root)
+        main.pack(fill=tk.BOTH, expand=True)
+
+        self.image_label = tk.Label(main, bg="gray")
+        self.image_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        controls = tk.Frame(main, width=220)
+        controls.pack(side=tk.RIGHT, fill=tk.Y, padx=5)
+
+        tk.Label(
+            controls,
+            text="Editing Tools",
+            font=("Arial", 11, "bold")
+        ).pack(pady=5)
+
+        tk.Button(
+            controls,
+            text="Grayscale",
+            command=self.grayscale
+        ).pack(fill=tk.X)
+
+        tk.Button(
+            controls,
+            text="Edges",
+            command=self.edges
+        ).pack(fill=tk.X)
+
+        tk.Label(controls, text="Blur").pack(pady=(10, 0))
+        self.blur_slider = tk.Scale(
+            controls,
+            from_=1,
+            to=15,
+            orient=tk.HORIZONTAL
+        )
+        self.blur_slider.set(5)
+        self.blur_slider.pack(fill=tk.X)
+
+        tk.Button(
+            controls,
+            text="Apply Blur",
+            command=self.blur
+        ).pack(fill=tk.X)
+
+        tk.Label(controls, text="Brightness").pack(pady=(10, 0))
+        self.brightness_slider = tk.Scale(
+            controls,
+            from_=-80,
+            to=80,
+            orient=tk.HORIZONTAL
+        )
+        self.brightness_slider.pack(fill=tk.X)
+
+        tk.Label(controls, text="Contrast").pack(pady=(10, 0))
+        self.contrast_slider = tk.Scale(
+            controls,
+            from_=0.5,
+            to=2.0,
+            resolution=0.1,
+            orient=tk.HORIZONTAL
+        )
+        self.contrast_slider.set(1.0)
+        self.contrast_slider.pack(fill=tk.X)
+
+        tk.Button(
+            controls,
+            text="Enhance",
+            command=self.adjust_bc
+        ).pack(fill=tk.X, pady=5)
+
+        tk.Button(
+            controls,
+            text="Rotate 90°",
+            command=lambda: self.rotate(90)
+        ).pack(fill=tk.X)
+
+        tk.Button(
+            controls,
+            text="Flip Horizontal",
+            command=self.flip
+        ).pack(fill=tk.X)
+
+        tk.Label(controls, text="Resize").pack(pady=(10, 0))
+        self.resize_slider = tk.Scale(
+            controls,
+            from_=0.5,
+            to=1.5,
+            resolution=0.1,
+            orient=tk.HORIZONTAL
+        )
+        self.resize_slider.set(1.0)
+        self.resize_slider.pack(fill=tk.X)
+
+        tk.Button(
+            controls,
+            text="Apply Resize",
+            command=self.resize
+        ).pack(fill=tk.X)
